@@ -53,17 +53,21 @@
 
 <script>
 let device, server, service, rxChar;
-const SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
-const RX_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
+
+const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const RX_UUID      = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
 async function connectBLE() {
   try {
     device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [SERVICE_UUID] }]
+      acceptAllDevices: true,
+      optionalServices: [SERVICE_UUID]
     });
+
     server = await device.gatt.connect();
     service = await server.getPrimaryService(SERVICE_UUID);
     rxChar = await service.getCharacteristic(RX_UUID);
+
     document.getElementById("status").innerText = "Подключено";
   } catch (e) {
     alert("Ошибка подключения: " + e);
@@ -81,7 +85,10 @@ function sendMove(d) {
   let speed = document.getElementById("speedSlider").value;
   send(d + speed);
 }
-function sendStop() { send("s"); }
+
+function sendStop() {
+  send("s");
+}
 
 const speedSlider = document.getElementById("speedSlider");
 speedSlider.oninput = () => {
