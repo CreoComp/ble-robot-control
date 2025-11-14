@@ -2,33 +2,51 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
-<title>ESP32 BLE Серво</title>
+<title>ESP32 BLE Робот</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style>
   body { font-family: Arial; text-align: center; padding: 20px; }
-  button { width: 140px; height: 50px; margin: 8px; font-size: 16px; }
-  .servo-block { margin-top: 20px; text-align: center; max-width: 420px; margin-left: auto; margin-right: auto; }
-  label { font-size: 16px; }
+  button { width: 120px; height: 60px; margin: 5px; font-size: 18px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; justify-items: center; }
+  .servo-block { margin-top: 20px; text-align: left; max-width: 420px; margin-left: auto; margin-right: auto; }
+  label { display: block; margin-bottom: 6px; }
   input[type="range"] { width: 100%; }
 </style>
 </head>
 <body>
-<h2>ESP32 BLE — Управление серво</h2>
+<h2>ESP32 BLE Робот</h2>
 <button id="connectBtn">🔗 Подключиться</button>
 <p id="status">Отключено</p>
 
+<h3>Движение</h3>
+<div class="grid">
+  <div></div>
+  <button onclick="sendMove('f')">Вперёд</button>
+  <div></div>
+
+  <button onclick="sendMove('l')">Влево</button>
+  <button onclick="sendStop()">Стоп</button>
+  <button onclick="sendMove('r')">Вправо</button>
+
+  <div></div>
+  <button onclick="sendMove('b')">Назад</button>
+  <div></div>
+</div>
+
+<label>Скорость: <span id="speedVal">150</span></label>
+<br>
+<input type="range" min="0" max="255" value="150" id="speedSlider" />
+
 <div class="servo-block">
-  <h3>Серво</h3>
-  <label>Угол: <span id="servoVal">90</span>°</label><br>
-  <input type="range" min="0" max="180" value="90" id="servo" />
+  <h3>Сервопривод</h3>
+  <label>Серво: <span id="s2v">90</span>°</label>
+  <input type="range" min="0" max="180" value="90" id="s2" />
 </div>
 
 <script>
 let device, server, service, rxChar;
-
-// UUIDs в lowercase (требование Web Bluetooth в JS)
 const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-const RX_UUID      = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+const RX_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
 async function connectBLE() {
   try {
@@ -36,11 +54,9 @@ async function connectBLE() {
       acceptAllDevices: true,
       optionalServices: [SERVICE_UUID]
     });
-
     server = await device.gatt.connect();
     service = await server.getPrimaryService(SERVICE_UUID);
     rxChar = await service.getCharacteristic(RX_UUID);
-
     document.getElementById("status").innerText = "Подключено";
   } catch (e) {
     alert("Ошибка подключения: " + e);
@@ -58,19 +74,29 @@ function send(msg) {
   }
 }
 
-const servoSlider = document.getElementById("servo");
-const servoLabel = document.getElementById("servoVal");
-let last = 90;
+function sendMove(d) {
+  let speed = document.getElementById("speedSlider").value;
+  send(d + speed);
+}
+function sendStop() { send("s"); }
 
-servoSlider.oninput = () => {
-  servoLabel.innerText = servoSlider.value;
+const speedSlider = document.getElementById("speedSlider");
+speedSlider.oninput = () => {
+  document.getElementById("speedVal").innerText = speedSlider.value;
 };
 
-// Отправляем изменение угла сервопривода (на устройство используется команда u2<angle>)
+const s2 = document.getElementById("s2");
+const s2v = document.getElementById("s2v");
+let lastS2 = 90;
+s2.oninput = () => {
+  s2v.innerText = s2.value;
+};
+
+// send servo 2 changes as "u2<angle>"
 setInterval(() => {
-  let val = parseInt(servoSlider.value);
-  if (val !== last) {
-    last = val;
+  let val = parseInt(s2.value);
+  if (val !== lastS2) {
+    lastS2 = val;
     send("u2" + val);
   }
 }, 120);
