@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<title>ESP32 BLE Робот</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  body { font-family: Arial; text-align: center; padding: 20px; }
+  button { width: 120px; height: 60px; margin: 5px; font-size: 18px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; justify-items: center; }
+  .servo-block { margin-top: 20px; text-align: left; }
+</style>
+</head>
+<body>
+<h2>ESP32 BLE Робот</h2>
+<button id="connectBtn">🔗 Подключиться</button>
+<p id="status">Отключено</p>
+
+<h3>Движение</h3>
+<div class="grid">
+  <div></div>
+  <button onclick="sendMove('f')">Вперёд</button>
+  <div></div>
+
+  <button onclick="sendMove('l')">Влево</button>
+  <button onclick="sendStop()">Стоп</button>
+  <button onclick="sendMove('r')">Вправо</button>
+
+  <div></div>
+  <button onclick="sendMove('b')">Назад</button>
+  <div></div>
+</div>
+
+<label>Скорость: <span id="speedVal">150</span></label>
+<br>
+<input type="range" min="0" max="255" value="150" id="speedSlider" />
+
+<div class="servo-block">
+  <h3>Сервоприводы</h3>
+  <div>
+    <label>Серво 1: <span id="s1v">90</span></label><br>
+    <input type="range" min="0" max="180" value="90" id="s1" />
+  </div>
+  <div>
+    <label>Серво 2: <span id="s2v">90</span></label><br>
+    <input type="range" min="0" max="180" value="90" id="s2" />
+  </div>
+  <div>
+    <label>Серво 3: <span id="s3v">90</span></label><br>
+    <input type="range" min="0" max="180" value="90" id="s3" />
+  </div>
+</div>
+
+<script>
+let device, server, service, rxChar;
+const SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
+const RX_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
+
+async function connectBLE() {
+  try {
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [SERVICE_UUID] }]
+    });
+    server = await device.gatt.connect();
+    service = await server.getPrimaryService(SERVICE_UUID);
+    rxChar = await service.getCharacteristic(RX_UUID);
+    document.getElementById("status").innerText = "Подключено";
+  } catch (e) {
+    alert("Ошибка подключения: " + e);
+  }
+}
+
+document.getElementById("connectBtn").onclick = connectBLE;
+
+function send(msg) {
+  if (!rxChar) return;
+  rxChar.writeValue(new TextEncoder().encode(msg + "\n"));
+}
+
+function sendMove(d) {
+  let speed = document.getElementById("speedSlider").value;
+  send(d + speed);
+}
+function sendStop() { send("s"); }
+
+const speedSlider = document.getElementById("speedSlider");
+speedSlider.oninput = () => {
+  document.getElementById("speedVal").innerText = speedSlider.value;
+};
+
+const servos = [
+  document.getElementById("s1"),
+  document.getElementById("s2"),
+  document.getElementById("s3")
+];
+const labels = ["s1v", "s2v", "s3v"];
+let last = [90, 90, 90];
+
+servos.forEach((slider, i) => {
+  slider.oninput = () => {
+    document.getElementById(labels[i]).innerText = slider.value;
+  };
+});
+
+setInterval(() => {
+  servos.forEach((s, i) => {
+    let val = parseInt(s.value);
+    if (val !== last[i]) {
+      last[i] = val;
+      send("u" + (i + 1) + val);
+    }
+  });
+}, 120);
+</script>
+</body>
+</html>
